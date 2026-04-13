@@ -1,0 +1,152 @@
+# Usuário de execução restrito
+resource "aws_iam_user" "b3_user" {
+  name = "${var.project_name}-user"
+}
+
+# Chaves de acesso (Access Key e Secret Key)
+resource "aws_iam_access_key" "b3_user_key" {
+  user = aws_iam_user.b3_user.name
+}
+
+# Política customizada para acesso ao S3
+resource "aws_iam_policy" "b3_user_policy" {
+  name = "${var.project_name}-b3-user-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "S3Access",
+        Effect = "Allow",
+        Action = [
+          "s3:ListBucket",
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ],
+        Resource = [
+          var.bucket_arn,
+          "${var.bucket_arn}/*"
+        ]
+      },
+      {
+        Sid    = "GlueAccess",
+        Effect = "Allow",
+        Action = [
+          "glue:CreateDatabase",
+          "glue:GetDatabase",
+          "glue:GetDatabases",
+          "glue:CreateTable",
+          "glue:GetTable",
+          "glue:GetTables",
+          "glue:UpdateTable",
+          "glue:BatchCreatePartition",
+          "glue:GetPartitions",
+          "glue:GetJobRun",
+          "glue:GetJobRuns",
+          "glue:GetJob",
+          "glue:StartJobRun"
+        ],
+        Resource = "*"
+      },
+      {
+        Sid    = "LambdaAccess",
+        Effect = "Allow",
+        Action = [
+          "lambda:InvokeFunction"
+        ],
+        Resource = "*"
+      },
+      {
+        Sid    = "Scheduler",
+        Effect = "Allow",
+        Action = [
+          "states:StartExecution"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Anexar política ao usuário
+resource "aws_iam_user_policy_attachment" "b3_user_attach" {
+  user       = aws_iam_user.b3_user.name
+  policy_arn = aws_iam_policy.b3_user_policy.arn
+}
+
+## Acesso ao lambda
+resource "aws_iam_role" "lambda_role" {
+  name = "${var.project_name}-lambda-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { Service = "lambda.amazonaws.com" },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_s3_attach" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.b3_user_policy.arn
+}
+
+## Acesso ao glue
+resource "aws_iam_role" "glue_role" {
+  name = "${var.project_name}-glue-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { Service = "glue.amazonaws.com" },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "glue_s3_attach" {
+  role       = aws_iam_role.glue_role.name
+  policy_arn = aws_iam_policy.b3_user_policy.arn
+}
+
+## Acesso ao Step Functions
+resource "aws_iam_role" "step_functions_role" {
+  name = "${var.project_name}-step_functions-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { Service = "states.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "step_functions_attach" {
+  role       = aws_iam_role.step_functions_role.name
+  policy_arn = aws_iam_policy.b3_user_policy.arn
+}
+
+## Acesso ao Scheduler
+resource "aws_iam_role" "scheduler_role" {
+  name = "${var.project_name}-scheduler-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { Service = "scheduler.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "scheduler_attach" {
+  role       = aws_iam_role.scheduler_role.name
+  policy_arn = aws_iam_policy.b3_user_policy.arn
+}
