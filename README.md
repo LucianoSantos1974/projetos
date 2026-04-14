@@ -6,7 +6,7 @@ Este projeto implementa um pipeline de dados para ingestão diária de arquivos 
 
 O pipeline realiza a captura de três arquivos publicados diariamente no site da B3, armazenando-os na camada raw (Amazon S3) e aplicando transformações para padronização dos dados na camada core.
 
-A execução é automatizada para ocorrer diariamente às 21h, sempre processando os dados mais recentes disponíveis.
+A execução é automatizada para ocorrer diariamente às 21h (segunda a sexta), schedulada via Amazon EventBridge, garantindo que o pipeline seja disparado de forma confiável e consistente.
 
 ---
 
@@ -14,24 +14,23 @@ A execução é automatizada para ocorrer diariamente às 21h, sempre processand
 
 Fluxo de alto nível:
 
-1. Orquestração via Step Functions
-2. Execução de função Lambda para identificação e download dos arquivos mais recentes
-3. Armazenamento dos arquivos na camada raw (S3), particionados por data
-4. Processamento e padronização utilizando AWS Glue
-5. Catalogação dos dados no Glue Data Catalog
+1. Agendamento via EventBridge para disparar o pipeline diariamente
+2. Orquestração via Step Functions
+3. Execução de função Lambda para identificação e download dos arquivos mais recentes
+4. Armazenamento dos arquivos na camada raw (S3), particionados por data
+5. Processamento e padronização utilizando AWS Glue
 6. Escrita dos dados tratados na camada core (S3)
-
-Infraestrutura provisionada via Terraform.
+7. Infraestrutura provisionada via Terraform.
 
 ---
 
 ## ⚙️ Stack Tecnológica
 
-* AWS S3 (armazenamento - camadas raw e core)
+* EventBridge (scheduler do processo)
+* AWS Step Functions (orquestração do pipeline)
 * AWS Lambda (ingestão e controle de fluxo inicial)
 * AWS Glue (processamento e transformação de dados)
-* AWS Step Functions (orquestração do pipeline)
-* AWS Glue Data Catalog (catalogação e metadados)
+* AWS S3 (armazenamento - camadas raw e core)
 * Terraform (Infraestrutura como Código - IaC)
 * Python (lógica de ingestão e transformação)
 
@@ -39,9 +38,9 @@ Infraestrutura provisionada via Terraform.
 
 ## 🔄 Pipeline / Fluxo de Dados
 
-### 1. Orquestração
+### 1. Agendamento e Orquestração
 
-* Pipeline iniciado diariamente às 21h
+* Pipeline iniciado diariamente às 21h (segunda a sexta) via Amazon EventBridge
 * Step Functions coordena as etapas de ingestão e processamento
 
 ### 2. Ingestão (Lambda)
@@ -53,7 +52,7 @@ Infraestrutura provisionada via Terraform.
 ### 3. Camada Raw (S3)
 
 * Armazenamento dos arquivos originais sem transformação
-* Estrutura particionada por data (`dt=YYYY-MM-DD`)
+* Estrutura particionada por data (`data_execucao=YYYY-MM-DD`)
 * Garantia de rastreabilidade e reprocessamento
 
 ### 4. Processamento (Glue)
@@ -69,14 +68,12 @@ Infraestrutura provisionada via Terraform.
 * Estrutura otimizada para consumo analítico
 * Organização consistente entre execuções
 
-### 6. Catalogação (Glue Data Catalog)
-* Registro das tabelas geradas na camada core
-* Estruturação de metadados para consulta e descoberta
-* Integração com motores de consulta (ex: Athena)
-
 ---
 
 ## 🎯 Decisões Técnicas
+
+* **Uso de EventBridge para agendamento**
+  Responsável por disparar o pipeline diariamente às 21h (segunda a sexta), garantindo execução automática e confiável.
 
 * **Uso de Step Functions para orquestração**
   Permite controle explícito do fluxo, tratamento de erros e maior visibilidade do pipeline.
@@ -93,8 +90,6 @@ Infraestrutura provisionada via Terraform.
 * **Arquitetura em camadas (raw → core)**
   Facilita auditoria, reprocessamento e desacoplamento entre ingestão e consumo.
 
-* **Uso do Glue Data Catalog**
-  Centraliza metadados dos datasets, permitindo descoberta, governança e integração com ferramentas de consulta como Athena.
 ---
 
 ## ⚖️ Trade-offs
@@ -107,6 +102,11 @@ Infraestrutura provisionada via Terraform.
 
 * **Processamento batch diário**
   Adequado ao caso de uso da B3, porém não atende cenários de baixa latência.
+
+* **Agendamento com EventBridge em vez do Glue Scheduler**
+  Optou-se pelo uso do Amazon EventBridge para maior flexibilidade e integração nativa com outros serviços da AWS. 
+  Diferente do Glue Scheduler, o EventBridge permite gerenciar regras de cron de forma centralizada, disparar múltiplos alvos 
+  (não apenas jobs do Glue) e manter a arquitetura mais desacoplada.
 
 ---
 
