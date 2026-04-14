@@ -6,7 +6,8 @@
 
 import urllib.request
 import boto3
-from datetime import datetime, timedelta
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import base64
 import os, json
 
@@ -15,9 +16,7 @@ bucket_name  = os.environ['BUCKET_NAME']
 origin_files = os.environ['PATH_FILE']
 
 def lambda_handler(event, context):
-    v_today_origin = datetime.today()
-    #v_today_origin = datetime.today()-timedelta(days=1)
-    #v_today_origin = datetime.strptime("2026-04-06", "%Y-%m-%d")
+    v_today_origin = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
 
     if v_today_origin.weekday() < 5:
         v_today = v_today_origin.strftime("%Y-%m-%d")
