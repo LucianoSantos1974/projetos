@@ -41,7 +41,7 @@ module "scheduler" {
   source              = "./modules/scheduler"
   project_name        = var.project_name
   description         = "Arquivos da B3 de taxa. Executa Lambda e Glue às 21h de segunda a sexta."
-  schedule_expression = "cron(0 21 ? * MON-FRI *)"
+  schedule_expression = "cron(0 0 ? * MON-FRI *)"
 
   targets = [
     {
